@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="2bb4d2e1-4085-4f71-968c-bc8d5f23d716" basePath="${httpRequest.basepath}" >
+		<http:request-connection port="${httpRequest.port}" host="${httpRequest.host}"/>
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="d14793fe-147a-45bc-8ab7-f847b4ade004" file="properties/local.yaml" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="45bf9e67-086a-4743-b052-1392afddd6c3" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="John@1104" database="hellodb" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="fa7940f3-cd43-45de-abd9-d7fadb0f28c9" basePath="${httpRequest.basepath}" >
+		<http:request-connection host="${httpRequest.host}" port="${httpRequest.port}" />
+	</http:request-config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="fb937478-f0d9-489d-aa58-c2f1607c454c" >
+		<db:my-sql-connection host="localhost" port="${dbConfig.port}" user="${secure::dbConfig.user}" password="${secure::dbConfig.password}" database="hellodb" />
+	</db:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="724e527d-75b7-4bed-bee0-7b4d2570eafe" file="properties/localdb_out.yaml" key="mulesoft" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<flow name="getConfigFlow" doc:id="21f2bc16-1990-4761-a05d-995f4836ef94" >
+		<set-variable value="#[attributes.queryParams.confirmationNum]" doc:name="Confirmation Number" doc:id="4cc51e8a-c8ba-495b-8c47-ef96d93c47cf" variableName="confirm"/>
+		<db:select doc:name="Select" doc:id="05a33b7e-e93d-4308-9cb6-26782552c571" config-ref="Database_Config1">
+			<db:sql><![CDATA[select * from  Bank where id =:idno;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	idno : attributes.queryParams.id
+	}]]]></db:input-parameters>
+		</db:select>
+		<set-variable value="#[payload]" doc:name="dbValue" doc:id="5ceb3d2d-2c00-4d3b-993f-68b0b5d3fff5" variableName="dbValue" />
+		<http:request method="GET" doc:name="Request" doc:id="52ed997a-6b5d-4908-ba15-ffc30c53472f" config-ref="HTTP_Request_configuration" path="${httpRequest.path}">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	confirmationNum : vars.confirm
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="4a389914-e175-47eb-a95b-bbc8cffae51a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import fail from dw::Runtime
+
+output application/json
+---
+if(payload.travelerDTOs.confirmationNum != null)
+{  
+pnrInfo:{
+			"confirmationNumber": payload.travelerDTOs[0].confirmationNum,
+            passengers: 
+                payload.travelerDTOs map (item,index) ->
+                {"paxNum": item.paxNum,
+                "segmentNum": item.segment,
+                "departureDate":item.flight.date,
+                "flightNumber":item.flight.flightNumber,
+                "leg":item.flight.leg,
+                "firstName":item.firstName,
+                "lastName":item.lastName,
+                "middleName":"",
+                scheduled:{
+                    "origin":item.flight.scheduled.origin,
+                        "destination":item.flight.scheduled.destination,                             "departureLocal":item.flight.scheduled.departureLocal,             "departureGMT":item.flight.scheduled.departureGMT,               "arrivalLocal":item.flight.scheduled.arrivalLocal,               "arrivalGMT":item.flight.scheduled.arrivalGMT
+                },
+                estimated:{
+                    "origin":"",
+                        "destination":"",                             "departureLocal":"",             "departureGMT":"",               "arrivalLocal":"",               "arrivalGMT":""
+                },
+                actual:{
+                    "origin":item.flight.actual.origin,
+                        "destination":item.flight.actual.destination,                             "departureLocal":item.flight.actual.departureLocal,             "departureGMT":item.flight.actual.departureGMT,               "arrivalLocal":item.flight.actual.arrivalLocal,               "arrivalGMT":item.flight.actual.arrivalGMT
+                },
+                departureStatus:{
+                    "status":item.flight.departureStatus.status,
+                    "locationCode":item.flight.departureStatus.locationCode,
+                    "terminal":item.flight.departureStatus.terminal,
+                    "gate":item.flight.departureStatus.gate,
+                    "baggageClaim":item.flight.departureStatus.baggageClaim,
+                    "domestic":item.flight.departureStatus.domestic
+                },
+                arrivalStatus:{
+                    "status":item.flight.arrivalStatus.status,
+                    "locationCode":item.flight.arrivalStatus.locationCode,
+                    "terminal":item.flight.arrivalStatus.terminal,
+                    "gate":item.flight.departureStatus.gate,
+                    "baggageClaim":item.flight.arrivalStatus.baggageClaim,
+                    "domestic":item.flight.arrivalStatus.domestic
+                },
+                contacts:
+                item.contacts map (key,value) -> {
+                    "type":key."type",
+                    "value":key.value
+                },
+                seats:{
+                    "row":item.seats[0].row,
+                    "column":item.seats[0].col
+                },
+                checkiIn:item.checkIn.status
+                } 
+            
+            },
+				id: vars.dbValue
+            }
+      else
+      	fail
+      	      
+            ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getConfigFlow1" doc:id="b3834546-05d3-4f7a-9bcb-1256718bc1ba" >
+		<set-variable value="#[attributes.queryParams.confirmationNum]" doc:name="Confirmation Number" doc:id="aa3d8cb3-9701-4834-9a3c-deccdaee34e1" variableName="confirm1"/>
+		<set-variable value="#[payload.firstName]" doc:name="firstName" doc:id="d666645d-a621-4c34-8217-25a28aae8949" variableName="firstName"/>
+		<set-variable value="#[payload.lastName]" doc:name="lastName" doc:id="da8edff1-2255-4aae-9e7c-f0a1442ca27d" variableName="lastName"/>
+		<http:request method="GET" doc:name="Request" doc:id="9a09daa7-84d9-4bc9-a2b9-e2070e207f0c" config-ref="HTTP_Request_configuration1" path="${httpRequest.path}">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	confirmationNum : vars.confirm1
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="2aa3467d-9501-4d33-a5da-d902c16c74aa" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import fail from dw::Runtime
+
+output application/json
+---
+if(payload.travelerDTOs.confirmationNum != null)
+{  
+pnrInfo:{
+			"confirmationNumber": payload.travelerDTOs[0].confirmationNum,
+            passengers: 
+                payload.travelerDTOs map (item,index) ->
+                {"paxNum": item.paxNum,
+                "segmentNum": item.segment,
+                "departureDate":item.flight.date,
+                "flightNumber":item.flight.flightNumber,
+                "leg":item.flight.leg,
+                "firstName":vars.firstName,
+                "lastName":vars.lastName,
+                "middleName":"",
+                scheduled:{
+                    "origin":item.flight.scheduled.origin,
+                        "destination":item.flight.scheduled.destination,                             "departureLocal":item.flight.scheduled.departureLocal,             "departureGMT":item.flight.scheduled.departureGMT,               "arrivalLocal":item.flight.scheduled.arrivalLocal,               "arrivalGMT":item.flight.scheduled.arrivalGMT
+                },
+                estimated:{
+                    "origin":"",
+                        "destination":"",                             "departureLocal":"",             "departureGMT":"",               "arrivalLocal":"",               "arrivalGMT":""
+                },
+                actual:{
+                    "origin":item.flight.actual.origin,
+                        "destination":item.flight.actual.destination,                             "departureLocal":item.flight.actual.departureLocal,             "departureGMT":item.flight.actual.departureGMT,               "arrivalLocal":item.flight.actual.arrivalLocal,               "arrivalGMT":item.flight.actual.arrivalGMT
+                },
+                departureStatus:{
+                    "status":item.flight.departureStatus.status,
+                    "locationCode":item.flight.departureStatus.locationCode,
+                    "terminal":item.flight.departureStatus.terminal,
+                    "gate":item.flight.departureStatus.gate,
+                    "baggageClaim":item.flight.departureStatus.baggageClaim,
+                    "domestic":item.flight.departureStatus.domestic
+                },
+                arrivalStatus:{
+                    "status":item.flight.arrivalStatus.status,
+                    "locationCode":item.flight.arrivalStatus.locationCode,
+                    "terminal":item.flight.arrivalStatus.terminal,
+                    "gate":item.flight.departureStatus.gate,
+                    "baggageClaim":item.flight.arrivalStatus.baggageClaim,
+                    "domestic":item.flight.arrivalStatus.domestic
+                },
+                contacts:
+                item.contacts map (key,value) -> {
+                    "type":key."type",
+                    "value":key.value
+                },
+                seats:{
+                    "row":item.seats[0].row,
+                    "column":item.seats[0].col
+                },
+                checkiIn:item.checkIn.status
+                } 
+            
+            }
+            }
+      else
+      	fail]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

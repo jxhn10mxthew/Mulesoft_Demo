@@ -1,0 +1,14 @@
+httpRequest: 
+  host: "jbshc1.qa1.allegiantair.com"
+  basepath: "/g4-checkinboard/v1/api"
+  port: "10780"
+  path: "/travelers"
+
+travellerConfig: 
+  tpath: "/api/*"
+  tport: "8081"
+
+dbConfig:
+  port: "3306"
+
+    

@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_b3834546_05d3_4f7a_9bcb_1256718bc1ba_Output_Variables_confirm1 = Any
+

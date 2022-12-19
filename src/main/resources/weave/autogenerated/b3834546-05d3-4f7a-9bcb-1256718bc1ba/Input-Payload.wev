@@ -1,0 +1,16 @@
+%dw 2.0
+
+type auto_b3834546_05d3_4f7a_9bcb_1256718bc1ba_Input_Payload = Array<{|  pnrInfo: {|    confirmationNumber: String,     passengers: Array<{|      paxNum: String,       segmentNum: String,       departureDate: String,       flightNumber: String,       leg: String,       firstName: String,       lastName: String,       middleName: String,       scheduled: {|        origin: String,         destination: String,         departureLocal: String,         departureGMT: String,         arrivalLocal: String,         arrivalGMT: String      |},       estimated: {|        origin: String,         destination: String,         departureLocal: String,         departureGMT: String,         arrivalLocal: String,         arrivalGMT: String      |},       actual: {|        origin: String,         destination: String,         departureLocal: String,         departureGMT: String,         arrivalLocal: String,         arrivalGMT: String      |},       departureStatus: {|        status: String,         locationCode: String,         terminal: String,         gate: String,         baggageClaim: String,         domestic: Boolean      |},       arrivalStatus: {|        status: String,         locationCode: String,         terminal: String,         gate: String,         baggageClaim: String,         domestic: Boolean      |},       contacts: Array<{|        "type": String,         value: String      |}>, 
+      seat: {|
+        row: String, 
+        column: String
+      |}, 
+      checkIn: Boolean
+    |}>
+  |}, 
+  responseStatus: {|
+    code: String, 
+    message: String
+  |}
+|}>
+
